@@ -11,10 +11,7 @@
 
     :root {
       --parchment: #f2ece0;
-      --ink:       #1c1409;
       --bark:      #6b4c2a;
-      --dust:      #b8a88a;
-      --gold:      #c9a84c;
     }
 
     html, body {
@@ -28,11 +25,9 @@
       overflow: hidden;
     }
 
-    /* ── SCENE ── */
     .scene {
       perspective: 2400px;
       width: min(740px, 96vw);
-      /* A4 ratio landscape: 297/210 ≈ 1.414, half-width per page */
       aspect-ratio: 2 / 1.414;
       position: relative;
     }
@@ -48,20 +43,19 @@
         0 1px 3px rgba(0,0,0,0.10);
     }
 
-    /* static spread */
     .spread {
       position: absolute; inset: 0;
-      display: flex;
+      display: none;
       border-radius: 3px;
       overflow: hidden;
     }
+    .spread.active { display: flex; }
 
     .half {
       width: 50%; height: 100%;
       position: relative;
       overflow: hidden;
       display: flex; align-items: center; justify-content: center;
-      background: #f0ebe0;
     }
     .half-l { background: linear-gradient(to right, #e6dfd0, #f0ebe0); }
     .half-r { background: linear-gradient(to left,  #e6dfd0, #f0ebe0); }
@@ -70,9 +64,9 @@
       width: 100%; height: 100%;
       object-fit: contain;
       display: block;
+      position: absolute; inset: 0;
     }
 
-    /* spine */
     .spine {
       position: absolute; left: calc(50% - 8px); top: 0;
       width: 16px; height: 100%; z-index: 8;
@@ -85,54 +79,40 @@
       pointer-events: none;
     }
 
-    /* page numbers */
     .pnum {
       position: absolute; bottom: 10px;
       font-family: 'Cormorant Garamond', serif;
-      font-style: italic;
-      font-weight: 400;
-      font-size: 11px;
-      letter-spacing: 0.08em;
+      font-style: italic; font-weight: 400;
+      font-size: 11px; letter-spacing: 0.08em;
       color: rgba(80,56,24,0.32);
       pointer-events: none; z-index: 2;
     }
     .pnum-l { right: 14px; }
     .pnum-r { left:  14px; }
 
-    /* placeholder when no image */
-    .ph {
-      width: 78%; height: 80%;
-      border: 1px dashed rgba(107,76,42,0.18);
-      border-radius: 3px;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .ph span {
-      font-family: 'Libre Baskerville', serif;
-      font-style: italic;
-      font-size: 11px;
-      color: rgba(107,76,42,0.28);
-    }
-
-    /* ── FLAP (turning page) ── */
     .flap {
       position: absolute; top: 0; left: 50%;
       width: 50%; height: 100%;
       transform-origin: left center;
       transform-style: preserve-3d;
-      pointer-events: none;
       z-index: 20;
+      transform: rotateY(-90deg);
     }
     .flap-f, .flap-b {
       position: absolute; inset: 0;
       backface-visibility: hidden;
       overflow: hidden;
-      display: flex; align-items: center; justify-content: center;
     }
     .flap-f { background: linear-gradient(to left, #e6dfd0, #f0ebe0); }
-    .flap-b { transform: rotateY(180deg); background: linear-gradient(to right, #e6dfd0, #f0ebe0); }
-    .flap-f img, .flap-b img { width: 100%; height: 100%; object-fit: contain; }
-
-    /* curl shadow on left edge of flap */
+    .flap-b {
+      transform: rotateY(180deg);
+      background: linear-gradient(to right, #e6dfd0, #f0ebe0);
+    }
+    .flap-f img, .flap-b img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      position: absolute; inset: 0;
+    }
     .flap-f::after {
       content: '';
       position: absolute; top: 0; left: 0;
@@ -141,7 +121,6 @@
       pointer-events: none;
     }
 
-    /* global fold shadow on right half */
     .fold-shadow {
       position: absolute; top: 0; left: 50%;
       width: 50%; height: 100%;
@@ -150,7 +129,6 @@
       opacity: 0; transition: opacity 0.2s;
     }
 
-    /* ── CONTROLS ── */
     .controls {
       display: flex; align-items: center; gap: 1.4rem;
       margin-top: 1.6rem;
@@ -171,120 +149,146 @@
 
     .ind {
       font-family: 'Cormorant Garamond', serif;
-      font-size: 1.1rem;
-      font-style: italic;
-      font-weight: 400;
-      color: var(--bark);
-      opacity: 0.60;
-      min-width: 72px; text-align: center;
-      letter-spacing: 0.12em;
+      font-size: 1.1rem; font-style: italic; font-weight: 400;
+      color: var(--bark); opacity: 0.60;
+      min-width: 72px; text-align: center; letter-spacing: 0.12em;
     }
   </style>
 </head>
 <body>
 
   <div class="scene">
-    <div class="book">
-
-      <div class="spread">
-        <div class="half half-l" id="pg-l">
-          <div class="ph" id="ph-l"><span>—</span></div>
-          <span class="pnum pnum-l" id="num-l"></span>
-        </div>
-        <div class="spine"></div>
-        <div class="half half-r" id="pg-r">
-          <div class="ph" id="ph-r"><span>—</span></div>
-          <span class="pnum pnum-r" id="num-r"></span>
-        </div>
-      </div>
-
+    <div class="book" id="book">
       <div class="fold-shadow" id="fold-shadow"></div>
-
       <div class="flap" id="flap">
         <div class="flap-f" id="flap-f"></div>
         <div class="flap-b" id="flap-b"></div>
       </div>
-
+      <div class="spine"></div>
     </div>
   </div>
 
   <div class="controls">
     <button class="btn" id="btn-p" disabled>&#8592;</button>
-    <span class="ind" id="ind">1 / 3</span>
+    <span class="ind" id="ind"></span>
     <button class="btn" id="btn-n">&#8594;</button>
   </div>
 
 <script>
-  /* ── CONFIG ── */
   const PAGES = ['1.jpeg','2.jpeg','3.jpeg','4.jpeg','5.jpeg','6.jpeg'];
-  /* Si uses .png canvia 'jpg' per 'png' a cada nom */
+  const total  = Math.ceil(PAGES.length / 2);
 
-  /* ── STATE ── */
-  let spread  = 0;
-  let anim    = false;
-  const total = Math.ceil(PAGES.length / 2);
+  let spread = 0;
+  let anim   = false;
 
-  /* ── ELEMENTS ── */
-  const pgL      = document.getElementById('pg-l');
-  const pgR      = document.getElementById('pg-r');
-  const phL      = document.getElementById('ph-l');
-  const phR      = document.getElementById('ph-r');
-  const numL     = document.getElementById('num-l');
-  const numR     = document.getElementById('num-r');
-  const flap     = document.getElementById('flap');
-  const flapF    = document.getElementById('flap-f');
-  const flapB    = document.getElementById('flap-b');
-  const foldSh   = document.getElementById('fold-shadow');
-  const ind      = document.getElementById('ind');
-  const btnP     = document.getElementById('btn-p');
-  const btnN     = document.getElementById('btn-n');
+  const book   = document.getElementById('book');
+  const flap   = document.getElementById('flap');
+  const flapF  = document.getElementById('flap-f');
+  const flapB  = document.getElementById('flap-b');
+  const foldSh = document.getElementById('fold-shadow');
+  const ind    = document.getElementById('ind');
+  const btnP   = document.getElementById('btn-p');
+  const btnN   = document.getElementById('btn-n');
 
-  /* ── HELPERS ── */
-  function setHalf(container, ph, numEl, idx) {
-    const old = container.querySelector('img');
-    if (old) old.remove();
-    if (idx >= 0 && idx < PAGES.length) {
-      ph.style.display = 'none';
-      const img = new Image();
-      img.src = PAGES[idx];
-      container.insertBefore(img, numEl);
-      numEl.textContent = idx + 1;
-    } else {
-      ph.style.display = 'flex';
-      numEl.textContent = '';
+  /* ── 1. Construeix tots els spreads al DOM ── */
+  const spreads = [];
+  for (let s = 0; s < total; s++) {
+    const el = document.createElement('div');
+    el.className = 'spread' + (s === 0 ? ' active' : '');
+
+    const lIdx = s * 2;
+    const rIdx = s * 2 + 1;
+
+    const halfL = document.createElement('div');
+    halfL.className = 'half half-l';
+    if (lIdx < PAGES.length) {
+      const img = document.createElement('img');
+      img.src = PAGES[lIdx];
+      halfL.appendChild(img);
+      const pn = document.createElement('span');
+      pn.className = 'pnum pnum-l';
+      pn.textContent = lIdx + 1;
+      halfL.appendChild(pn);
     }
-  }
 
-  function setFlap(el, idx) {
-    el.innerHTML = '';
-    if (idx >= 0 && idx < PAGES.length) {
-      const img = new Image();
-      img.src = PAGES[idx];
-      el.appendChild(img);
+    const halfR = document.createElement('div');
+    halfR.className = 'half half-r';
+    if (rIdx < PAGES.length) {
+      const img = document.createElement('img');
+      img.src = PAGES[rIdx];
+      halfR.appendChild(img);
+      const pn = document.createElement('span');
+      pn.className = 'pnum pnum-r';
+      pn.textContent = rIdx + 1;
+      halfR.appendChild(pn);
     }
+
+    el.appendChild(halfL);
+    el.appendChild(halfR);
+    book.insertBefore(el, foldSh);
+    spreads.push(el);
   }
 
-  function render() {
-    setHalf(pgL, phL, numL, spread * 2);
-    setHalf(pgR, phR, numR, spread * 2 + 1);
-    ind.textContent = (spread + 1) + ' / ' + total;
-    btnP.disabled = spread === 0 || anim;
-    btnN.disabled = spread >= total - 1 || anim;
+  /* ── 2. Una <img> per pàgina, preconstruïda, mai recreada ── */
+  const imgs = PAGES.map(src => {
+    const img = document.createElement('img');
+    img.src = src;
+    return img;
+  });
+
+  function setFlapSide(el, idx) {
+    /* Treu qualsevol imatge que hi hagi i posa la correcta */
+    while (el.firstChild) el.removeChild(el.firstChild);
+    if (idx >= 0 && idx < imgs.length) el.appendChild(imgs[idx]);
   }
 
-  /* ── FLIP ── */
+  function clearFlapSide(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  /* ── 3. Mostra un spread concret ── */
+  function showSpread(s) {
+    spreads.forEach((sp, i) => sp.classList.toggle('active', i === s));
+    ind.textContent = (s + 1) + ' / ' + total;
+    btnP.disabled = s === 0 || anim;
+    btnN.disabled = s >= total - 1 || anim;
+  }
+
+  /* ── 4. Reset flap: invisible, imatges retornades al seu lloc ── */
+  function resetFlap() {
+    flap.style.transition = 'none';
+    flap.style.transform  = 'rotateY(-90deg)';
+    foldSh.style.opacity  = '0';
+    clearFlapSide(flapF);
+    clearFlapSide(flapB);
+    anim = false;
+    btnP.disabled = spread === 0;
+    btnN.disabled = spread >= total - 1;
+  }
+
+  /* ── 5. Flip ── */
   function flip(dir) {
     if (anim) return;
     if (dir > 0 && spread >= total - 1) return;
     if (dir < 0 && spread <= 0) return;
+
     anim = true;
     btnP.disabled = true;
     btnN.disabled = true;
 
     if (dir > 0) {
-      /* forward: right page lifts and flips left */
-      setFlap(flapF, spread * 2 + 1);
-      setFlap(flapB, (spread + 1) * 2);
+      /*
+        Avançar:
+        - flap-f (0deg, cara visible al principi) = pàgina dreta actual
+        - flap-b (-180deg, cara visible en arribar) = pàgina esquerra del proper spread
+        - El spread del fons canvia al proper ABANS de l'animació:
+          pg-r del proper spread queda tapada pel flap → no es veu el canvi
+          pg-l del proper spread ja es veu al fons des del principi ✓
+      */
+      setFlapSide(flapF, spread * 2 + 1);
+      setFlapSide(flapB, (spread + 1) * 2);
+      setTimeout(() => showSpread(spread + 1), 200);
+
       flap.style.transition = 'none';
       flap.style.transform  = 'rotateY(0deg)';
       foldSh.style.opacity  = '0';
@@ -293,18 +297,22 @@
         flap.style.transition = 'transform 0.68s cubic-bezier(0.42,0,0.18,1)';
         flap.style.transform  = 'rotateY(-180deg)';
         foldSh.style.opacity  = '1';
-
-        setTimeout(() => {
-          spread++;
-          render();
-          resetFlap();
-        }, 690);
+        setTimeout(() => { spread++; resetFlap(); }, 700);
       }));
 
     } else {
-      /* backward: reveal previous spread */
-      setFlap(flapF, spread * 2 - 1);
-      setFlap(flapB, spread * 2);
+      /*
+        Retrocedir:
+        - flap-b (-180deg, visible al principi) = pàgina esquerra del spread actual
+        - flap-f (0deg, visible en arribar) = pàgina dreta del spread anterior
+        - El spread del fons canvia a l'anterior ABANS:
+          pg-l queda tapada pel flap a -180 → no es veu el canvi
+          pg-r de l'anterior ja es veu al fons ✓
+      */
+      setFlapSide(flapB, spread * 2);
+      setFlapSide(flapF, (spread - 1) * 2 + 1);
+      setTimeout(() => showSpread(spread - 1), 200);
+
       flap.style.transition = 'none';
       flap.style.transform  = 'rotateY(-180deg)';
       foldSh.style.opacity  = '0';
@@ -313,37 +321,19 @@
         flap.style.transition = 'transform 0.68s cubic-bezier(0.42,0,0.18,1)';
         flap.style.transform  = 'rotateY(0deg)';
         foldSh.style.opacity  = '1';
-
-        setTimeout(() => {
-          spread--;
-          render();
-          resetFlap();
-        }, 690);
+        setTimeout(() => { spread--; resetFlap(); }, 700);
       }));
     }
   }
 
-  function resetFlap() {
-    flap.style.transition = 'none';
-    flap.style.transform  = 'rotateY(0deg)';
-    foldSh.style.opacity  = '0';
-    flapF.innerHTML = '';
-    flapB.innerHTML = '';
-    anim = false;
-    btnP.disabled = spread === 0;
-    btnN.disabled = spread >= total - 1;
-  }
-
   btnN.addEventListener('click', () => flip(1));
   btnP.addEventListener('click', () => flip(-1));
-
-  /* teclat */
   document.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight') flip(1);
     if (e.key === 'ArrowLeft')  flip(-1);
   });
 
-  render();
+  showSpread(0);
 </script>
 </body>
 </html>
