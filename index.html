@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Dossier</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Libre+Baskerville:ital@0;1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Libre+Baskerville:ital@0;1&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -88,9 +88,11 @@
     /* page numbers */
     .pnum {
       position: absolute; bottom: 10px;
-      font-family: 'Libre Baskerville', serif;
+      font-family: 'Cormorant Garamond', serif;
       font-style: italic;
-      font-size: 10px;
+      font-weight: 400;
+      font-size: 11px;
+      letter-spacing: 0.08em;
       color: rgba(80,56,24,0.32);
       pointer-events: none; z-index: 2;
     }
@@ -168,12 +170,14 @@
     .btn:disabled { opacity: 0.2; cursor: default; }
 
     .ind {
-      font-family: 'Pinyon Script', cursive;
-      font-size: 1.4rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
+      font-style: italic;
+      font-weight: 400;
       color: var(--bark);
-      opacity: 0.55;
+      opacity: 0.60;
       min-width: 72px; text-align: center;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.12em;
     }
   </style>
 </head>
