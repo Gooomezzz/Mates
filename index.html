@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dossier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Libre+Baskerville:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --parchment: #f2ece0;
+      --ink:       #1c1409;
+      --bark:      #6b4c2a;
+      --dust:      #b8a88a;
+      --gold:      #c9a84c;
+    }
+
+    html, body {
+      min-height: 100vh;
+      background: var(--parchment);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* ── SCENE ── */
+    .scene {
+      perspective: 2400px;
+      width: min(740px, 96vw);
+      /* A4 ratio landscape: 297/210 ≈ 1.414, half-width per page */
+      aspect-ratio: 2 / 1.414;
+      position: relative;
+    }
+
+    .book {
+      width: 100%; height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      border-radius: 3px;
+      box-shadow:
+        0 24px 64px rgba(0,0,0,0.26),
+        0 6px 16px rgba(0,0,0,0.14),
+        0 1px 3px rgba(0,0,0,0.10);
+    }
+
+    /* static spread */
+    .spread {
+      position: absolute; inset: 0;
+      display: flex;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .half {
+      width: 50%; height: 100%;
+      position: relative;
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      background: #f0ebe0;
+    }
+    .half-l { background: linear-gradient(to right, #e6dfd0, #f0ebe0); }
+    .half-r { background: linear-gradient(to left,  #e6dfd0, #f0ebe0); }
+
+    .half img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* spine */
+    .spine {
+      position: absolute; left: calc(50% - 8px); top: 0;
+      width: 16px; height: 100%; z-index: 8;
+      background: linear-gradient(to right,
+        rgba(0,0,0,0.07) 0%,
+        rgba(255,255,255,0.06) 45%,
+        rgba(0,0,0,0.06) 60%,
+        rgba(0,0,0,0.09) 100%
+      );
+      pointer-events: none;
+    }
+
+    /* page numbers */
+    .pnum {
+      position: absolute; bottom: 10px;
+      font-family: 'Libre Baskerville', serif;
+      font-style: italic;
+      font-size: 10px;
+      color: rgba(80,56,24,0.32);
+      pointer-events: none; z-index: 2;
+    }
+    .pnum-l { right: 14px; }
+    .pnum-r { left:  14px; }
+
+    /* placeholder when no image */
+    .ph {
+      width: 78%; height: 80%;
+      border: 1px dashed rgba(107,76,42,0.18);
+      border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .ph span {
+      font-family: 'Libre Baskerville', serif;
+      font-style: italic;
+      font-size: 11px;
+      color: rgba(107,76,42,0.28);
+    }
+
+    /* ── FLAP (turning page) ── */
+    .flap {
+      position: absolute; top: 0; left: 50%;
+      width: 50%; height: 100%;
+      transform-origin: left center;
+      transform-style: preserve-3d;
+      pointer-events: none;
+      z-index: 20;
+    }
+    .flap-f, .flap-b {
+      position: absolute; inset: 0;
+      backface-visibility: hidden;
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .flap-f { background: linear-gradient(to left, #e6dfd0, #f0ebe0); }
+    .flap-b { transform: rotateY(180deg); background: linear-gradient(to right, #e6dfd0, #f0ebe0); }
+    .flap-f img, .flap-b img { width: 100%; height: 100%; object-fit: contain; }
+
+    /* curl shadow on left edge of flap */
+    .flap-f::after {
+      content: '';
+      position: absolute; top: 0; left: 0;
+      width: 18px; height: 100%;
+      background: linear-gradient(to right, rgba(0,0,0,0.10), transparent);
+      pointer-events: none;
+    }
+
+    /* global fold shadow on right half */
+    .fold-shadow {
+      position: absolute; top: 0; left: 50%;
+      width: 50%; height: 100%;
+      background: linear-gradient(to left, transparent, rgba(0,0,0,0.10));
+      pointer-events: none; z-index: 9;
+      opacity: 0; transition: opacity 0.2s;
+    }
+
+    /* ── CONTROLS ── */
+    .controls {
+      display: flex; align-items: center; gap: 1.4rem;
+      margin-top: 1.6rem;
+    }
+    .btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 1px solid rgba(107,76,42,0.25);
+      background: rgba(242,236,224,0.85);
+      color: var(--bark);
+      font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, transform 0.1s;
+      backdrop-filter: blur(4px);
+    }
+    .btn:hover:not(:disabled) { background: rgba(220,210,192,0.9); }
+    .btn:active:not(:disabled) { transform: scale(0.92); }
+    .btn:disabled { opacity: 0.2; cursor: default; }
+
+    .ind {
+      font-family: 'Pinyon Script', cursive;
+      font-size: 1.4rem;
+      color: var(--bark);
+      opacity: 0.55;
+      min-width: 72px; text-align: center;
+      letter-spacing: 0.04em;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="scene">
+    <div class="book">
+
+      <div class="spread">
+        <div class="half half-l" id="pg-l">
+          <div class="ph" id="ph-l"><span>—</span></div>
+          <span class="pnum pnum-l" id="num-l"></span>
+        </div>
+        <div class="spine"></div>
+        <div class="half half-r" id="pg-r">
+          <div class="ph" id="ph-r"><span>—</span></div>
+          <span class="pnum pnum-r" id="num-r"></span>
+        </div>
+      </div>
+
+      <div class="fold-shadow" id="fold-shadow"></div>
+
+      <div class="flap" id="flap">
+        <div class="flap-f" id="flap-f"></div>
+        <div class="flap-b" id="flap-b"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="btn-p" disabled>&#8592;</button>
+    <span class="ind" id="ind">1 / 3</span>
+    <button class="btn" id="btn-n">&#8594;</button>
+  </div>
+
+<script>
+  /* ── CONFIG ── */
+  const PAGES = ['1.jpg','2.jpg','3.jpg','4.jpg','5.jpg','6.jpg'];
+  /* Si uses .png canvia 'jpg' per 'png' a cada nom */
+
+  /* ── STATE ── */
+  let spread  = 0;
+  let anim    = false;
+  const total = Math.ceil(PAGES.length / 2);
+
+  /* ── ELEMENTS ── */
+  const pgL      = document.getElementById('pg-l');
+  const pgR      = document.getElementById('pg-r');
+  const phL      = document.getElementById('ph-l');
+  const phR      = document.getElementById('ph-r');
+  const numL     = document.getElementById('num-l');
+  const numR     = document.getElementById('num-r');
+  const flap     = document.getElementById('flap');
+  const flapF    = document.getElementById('flap-f');
+  const flapB    = document.getElementById('flap-b');
+  const foldSh   = document.getElementById('fold-shadow');
+  const ind      = document.getElementById('ind');
+  const btnP     = document.getElementById('btn-p');
+  const btnN     = document.getElementById('btn-n');
+
+  /* ── HELPERS ── */
+  function setHalf(container, ph, numEl, idx) {
+    const old = container.querySelector('img');
+    if (old) old.remove();
+    if (idx >= 0 && idx < PAGES.length) {
+      ph.style.display = 'none';
+      const img = new Image();
+      img.src = PAGES[idx];
+      container.insertBefore(img, numEl);
+      numEl.textContent = idx + 1;
+    } else {
+      ph.style.display = 'flex';
+      numEl.textContent = '';
+    }
+  }
+
+  function setFlap(el, idx) {
+    el.innerHTML = '';
+    if (idx >= 0 && idx < PAGES.length) {
+      const img = new Image();
+      img.src = PAGES[idx];
+      el.appendChild(img);
+    }
+  }
+
+  function render() {
+    setHalf(pgL, phL, numL, spread * 2);
+    setHalf(pgR, phR, numR, spread * 2 + 1);
+    ind.textContent = (spread + 1) + ' / ' + total;
+    btnP.disabled = spread === 0 || anim;
+    btnN.disabled = spread >= total - 1 || anim;
+  }
+
+  /* ── FLIP ── */
+  function flip(dir) {
+    if (anim) return;
+    if (dir > 0 && spread >= total - 1) return;
+    if (dir < 0 && spread <= 0) return;
+    anim = true;
+    btnP.disabled = true;
+    btnN.disabled = true;
+
+    if (dir > 0) {
+      /* forward: right page lifts and flips left */
+      setFlap(flapF, spread * 2 + 1);
+      setFlap(flapB, (spread + 1) * 2);
+      flap.style.transition = 'none';
+      flap.style.transform  = 'rotateY(0deg)';
+      foldSh.style.opacity  = '0';
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        flap.style.transition = 'transform 0.68s cubic-bezier(0.42,0,0.18,1)';
+        flap.style.transform  = 'rotateY(-180deg)';
+        foldSh.style.opacity  = '1';
+
+        setTimeout(() => {
+          spread++;
+          render();
+          resetFlap();
+        }, 690);
+      }));
+
+    } else {
+      /* backward: reveal previous spread */
+      setFlap(flapF, spread * 2 - 1);
+      setFlap(flapB, spread * 2);
+      flap.style.transition = 'none';
+      flap.style.transform  = 'rotateY(-180deg)';
+      foldSh.style.opacity  = '0';
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        flap.style.transition = 'transform 0.68s cubic-bezier(0.42,0,0.18,1)';
+        flap.style.transform  = 'rotateY(0deg)';
+        foldSh.style.opacity  = '1';
+
+        setTimeout(() => {
+          spread--;
+          render();
+          resetFlap();
+        }, 690);
+      }));
+    }
+  }
+
+  function resetFlap() {
+    flap.style.transition = 'none';
+    flap.style.transform  = 'rotateY(0deg)';
+    foldSh.style.opacity  = '0';
+    flapF.innerHTML = '';
+    flapB.innerHTML = '';
+    anim = false;
+    btnP.disabled = spread === 0;
+    btnN.disabled = spread >= total - 1;
+  }
+
+  btnN.addEventListener('click', () => flip(1));
+  btnP.addEventListener('click', () => flip(-1));
+
+  /* teclat */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') flip(1);
+    if (e.key === 'ArrowLeft')  flip(-1);
+  });
+
+  render();
+</script>
+</body>
+</html>
